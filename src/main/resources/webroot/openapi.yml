@@ -1,0 +1,65 @@
+openapi: 3.0.2
+
+info:
+  version: 1.0.0
+  title: iot-twitter-application
+
+paths:
+  /v1/tph/:
+    get:
+      summary: Get number of tweets from last hour.
+      description: Returns the numer of tweets with the \#iot from the last hour.
+      operationId: tweetsLastHour
+      responses:
+        '200':
+          description: Success.
+        '500':
+          description: Server error.
+  /v1/tph/{date}:
+    get:
+      summary: Get number of tweets for given hour.
+      description: Returns the numer of tweets with the \#iot from the given hour as paramets date.
+      operationId: tweetsPerBySetHour
+      parameters:
+        - name: date
+          in: path
+          description: Date for the desired hour (only supported 30days backwards) format is yyyy-mm-dd_HH.
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success.
+        '400':
+          description: Date not valid.
+        '500':
+          description: Server error.
+  /v1/uph/:
+    get:
+      summary: Get the number of users for the last hour.
+      description: Returns the number of users for the \#iot in the last hour.
+      operationId: userTweetsLastHour
+      responses:
+        '200':
+          description: Success.
+        '500':
+          description: Server error.
+  /v1/uph/{date}:
+    get:
+      summary: Get the number of users for a given hour.
+      description: Returns the number of users for the \#iot in given last hour as parameter date.
+      operationId: userTweetsBySetHour
+      parameters:
+      - name: date
+        in: path
+        description: Date for the desired hour (only supported 30days backwards) format is yyyy-mm-dd_HH.
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Success.
+        '400':
+          description: Date not valid.
+        '500':
+          description: Server error.

@@ -1,3 +1,4 @@
 .idea
 .vertx
 iot-twitter-application.iml
+target/
