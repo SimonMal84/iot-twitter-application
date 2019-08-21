@@ -9,8 +9,10 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.api.contract.openapi3.OpenAPI3RouterFactory;
 import io.vertx.ext.web.handler.StaticHandler;
+import org.apache.commons.lang3.ObjectUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import twitter4j.conf.ConfigurationBuilder;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -21,7 +23,13 @@ public class MainVerticle extends AbstractVerticle {
 
     private Logger log = LoggerFactory.getLogger(getClass());
     private int serverPort = 8080;
-    private String dateFromatPattern="yyyy-mm-dd_HH";
+    private String dateFormatPattern = "yyyy-mm-dd_HH";
+    private TwitterHandler twitterHandler;
+    private long setupTimer;
+    private String hashTag = "iot";
+
+    SimpleDateFormat simpleDateFormat = new SimpleDateFormat(dateFormatPattern);
+
 
     public static void main(String[] args) {
         Launcher.executeCommand("run", MainVerticle.class.getName());
@@ -29,7 +37,17 @@ public class MainVerticle extends AbstractVerticle {
 
     @Override
     public void start(Future<Void> startFuture) {
-        Future<Void> steps = startServer();
+
+        //TODO: Just a quick and dirty way to initialise log4j to log into the console
+        org.apache.log4j.BasicConfigurator.configure();
+
+        //Set lenient to for string parsing
+        simpleDateFormat.setLenient(false);
+
+        Future<Void> steps = setupTwitterHandler()
+                .compose(handler -> startServer());
+
+        setupTwitterHarvestingJob();
 
         steps.setHandler(handler -> {
             if (handler.succeeded()) {
@@ -72,58 +90,147 @@ public class MainVerticle extends AbstractVerticle {
 
     }
 
+    private Future<Void> setupTwitterHandler() {
+
+        Future<Void> future = Future.future();
+
+        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.setDebugEnabled(true)
+                .setOAuthConsumerKey("jei9JhlDzBkAhvb57NjosYASV")
+                .setOAuthConsumerSecret("SLOeCOpOROZjJLBwSDyasHJwwurGZDGX1e43c7Ff4rTTP2kfk4")
+                .setOAuthAccessToken("412281678-pkuIjrfHDTBuHnOgP2hdFYDE5p9ylHClVDTYDTQQ")
+                .setOAuthAccessTokenSecret("T5sBzVBiFTRJVR4pSgsowrj4eViab9TBvw0gPDFlkDbTt");
+
+        twitterHandler = new TwitterHandler(configurationBuilder);
+        if (ObjectUtils.allNotNull(twitterHandler.twitter.help())) {
+            future.complete();
+        } else {
+            future.fail("No connection to twitter.");
+        }
+
+        return future;
+    }
+
+    /**
+     * Setup the hourly harvesting job for the relevant twitter data.
+     * Done this way to have the opportunity to 5,10 etc minutes of an hour and not introduce a cron.
+     */
+    private Future<Void> setupTwitterHarvestingJob() {
+
+        Future<Void> future = Future.future();
+
+        //start by setting the timer to every minute to then start every full hour
+        setupTimer = vertx.setPeriodic(1000 * 60, setupHandler -> {
+            int minutes = new Date().getMinutes();
+            if (minutes == 0) {
+
+                //remove the old timer and setup the new one
+                vertx.cancelTimer(setupTimer);
+
+                //called every hour to get the latest tweet counts
+                vertx.setPeriodic(1000 * 60 * 60, handler -> {
+                    twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+                });
+            }
+        });
+
+
+        return future;
+    }
+
 
     private void tweetsLastHour(RoutingContext context) {
+
+        TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
+        if(!ObjectUtils.allNotNull(twitterCounts)){
+            twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+        }
+
         context.response().setStatusCode(200);
-        context.response().end("Tweets last hour ");
+        context.response().end("For the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets last hour.");
 
     }
 
     private void tweetsPerBySetHour(RoutingContext context) {
+        Date date;
 
-
-        if(checkDateFormat(context.pathParam("date"))){
-            context.response().setStatusCode(200);
-            context.response().end("tweetsPerBySetHour " + context.pathParam("date"));
-        }else{
+        try {
+            date = checkDateFormat(context.pathParam("date"));
+        } catch (ParseException e) {
             context.response().setStatusCode(400);
-            context.response().end("The given date is not in the expected format:  " + dateFromatPattern);
+            context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
+            return;
         }
+
+        TwitterCounts twitterCounts = null;
+        try {
+            twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(simpleDateFormat.parse(context.pathParam("date")), simpleDateFormat);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        if(ObjectUtils.allNotNull(twitterCounts)){
+            context.response().setStatusCode(200);
+            context.response().end("For the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets in the given date "+context.pathParam("date") +".");
+            return;
+        }else{
+            context.response().setStatusCode(500);
+            context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
+        }
+
 
 
     }
 
     private void userTweetsLastHour(RoutingContext context) {
+        TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
+        if(!ObjectUtils.allNotNull(twitterCounts)){
+            twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+        }
+
         context.response().setStatusCode(200);
-        context.response().end("tweetsLastHour 3");
+        context.response().end(twitterCounts.getActiveTweetsPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" in the last hour.");
 
     }
 
     private void userTweetsBySetHour(RoutingContext context) {
-        if(checkDateFormat(context.pathParam("date"))){
-            context.response().setStatusCode(200);
-            context.response().end("tweetsPerBySetHour " + context.pathParam("date"));
-        }else{
+
+        Date date;
+
+        try {
+            date = checkDateFormat(context.pathParam("date"));
+        } catch (ParseException e) {
             context.response().setStatusCode(400);
-            context.response().end("The given date is not in the expected format:  " + dateFromatPattern);
+            context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
+            return;
+        }
+
+        TwitterCounts twitterCounts = null;
+        try {
+            twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(simpleDateFormat.parse(context.pathParam("date")), simpleDateFormat);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+
+        if(ObjectUtils.allNotNull(twitterCounts)){
+            context.response().setStatusCode(200);
+            context.response().end(twitterCounts.getActiveUsersPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" on the given date "+context.pathParam("date") +".");
+            return;
+        }else{
+            context.response().setStatusCode(500);
+            context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
         }
     }
 
 
-    private boolean checkDateFormat(String dateString){
+    private Date checkDateFormat(String dateString) throws ParseException {
 
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat(dateFromatPattern);
-        simpleDateFormat.setLenient(false);
-        try {
-            //if the given dateString is not parseable against the pattern an exception is thrown.
-            Date date = simpleDateFormat.parse(dateString);
-        } catch (ParseException e) {
-            return false;
-        }
+        //if the given dateString is not parseable against the pattern an exception is thrown.
+        Date date = simpleDateFormat.parse(dateString);
 
         //check if the dateString only contains numbers, - and _
-        if(!dateString.matches("[0-9_-]*")) return false;
+        if (!dateString.matches("[0-9_-]*"))
+            throw new ParseException("Given date no parsable, contains characters ", 1);
 
-        return true;
+        return date;
     }
 }

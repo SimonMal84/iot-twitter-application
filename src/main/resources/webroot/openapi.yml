@@ -17,8 +17,8 @@ paths:
           description: Server error.
   /v1/tph/{date}:
     get:
-      summary: Get number of tweets for given hour.
-      description: Returns the numer of tweets with the \#iot from the given hour as paramets date.
+      summary: Get number of tweets for given hour of the day.
+      description: Returns the numer of tweets with the \#iot from the given date and hour of day as paramets date.
       operationId: tweetsPerBySetHour
       parameters:
         - name: date
@@ -46,8 +46,8 @@ paths:
           description: Server error.
   /v1/uph/{date}:
     get:
-      summary: Get the number of users for a given hour.
-      description: Returns the number of users for the \#iot in given last hour as parameter date.
+      summary: Get the number of users for a given hour of day.
+      description: Returns the number of users for the \#iot in given date and hour of day as parameter date.
       operationId: userTweetsBySetHour
       parameters:
       - name: date
