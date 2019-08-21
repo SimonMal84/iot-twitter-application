@@ -177,13 +177,13 @@ public class MainVerticle extends AbstractVerticle {
             //if still nothing found then there is no data for the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
                 context.response().setStatusCode(500);
-                context.response().end("No tweets in the last hour.");
+                context.response().end("iot-twitter-application\n\nNo tweets in the last hour.");
                 return;
             }
         }
 
         context.response().setStatusCode(200);
-        context.response().end("For the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets last hour.");
+        context.response().end("iot-twitter-application\n\nFor the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets last hour.");
 
     }
 
@@ -204,7 +204,7 @@ public class MainVerticle extends AbstractVerticle {
         } catch (ParseException e) {
             //return an error for the wrong dateformat
             context.response().setStatusCode(400);
-            context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
+            context.response().end("iot-twitter-application\n\nThe given date is not in the expected format:  " + dateFormatPattern);
             return;
         }
 
@@ -219,12 +219,12 @@ public class MainVerticle extends AbstractVerticle {
         //if the object is not null there is no data stored
         if(ObjectUtils.allNotNull(twitterCounts)){
             context.response().setStatusCode(200);
-            context.response().end("For the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets in the given date "+context.pathParam("date") +".");
+            context.response().end("iot-twitter-application\n\nFor the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets at the given date "+context.pathParam("date") +".");
             return;
         }else{
             //no data storeed
             context.response().setStatusCode(500);
-            context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
+            context.response().end("iot-twitter-application\n\nThere is no data stored for the date "+context.pathParam("date")+".");
         }
 
 
@@ -251,13 +251,13 @@ public class MainVerticle extends AbstractVerticle {
             //if object still null there is no data in the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
                 context.response().setStatusCode(500);
-                context.response().end("No tweets in the last hour.");
+                context.response().end("iot-twitter-application\n\nNo tweets in the last hour.");
                 return;
             }
         }
 
         context.response().setStatusCode(200);
-        context.response().end(twitterCounts.getActiveTweetsPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" in the last hour.");
+        context.response().end("iot-twitter-application\n\n"+twitterCounts.getActiveTweetsPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" in the last hour.");
 
     }
 
@@ -278,7 +278,7 @@ public class MainVerticle extends AbstractVerticle {
         } catch (ParseException e) {
             //return error if the date format is not vaild
             context.response().setStatusCode(200);
-            context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
+            context.response().end("iot-twitter-application\n\nThe given date is not in the expected format:  " + dateFormatPattern);
             return;
         }
 
@@ -293,12 +293,12 @@ public class MainVerticle extends AbstractVerticle {
         //if object not null data is stored and will be returned
         if(ObjectUtils.allNotNull(twitterCounts)){
             context.response().setStatusCode(200);
-            context.response().end(twitterCounts.getActiveUsersPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" on the given date "+context.pathParam("date") +".");
+            context.response().end("iot-twitter-application\n\n"+twitterCounts.getActiveUsersPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" at the given date "+context.pathParam("date") +".");
             return;
         }else{
             //no data found for the given date
             context.response().setStatusCode(500);
-            context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
+            context.response().end("iot-twitter-application\n\n There is no data stored for the date "+context.pathParam("date")+".");
         }
     }
 
