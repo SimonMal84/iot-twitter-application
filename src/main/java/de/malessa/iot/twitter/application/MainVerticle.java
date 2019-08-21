@@ -21,6 +21,7 @@ import java.util.Date;
 
 public class MainVerticle extends AbstractVerticle {
 
+    //TODO make the parameters for the application configurable via ENV
     private Logger log = LoggerFactory.getLogger(getClass());
     private int serverPort = 8080;
     private String dateFormatPattern = "yyyy-mm-dd_HH";
@@ -44,9 +45,11 @@ public class MainVerticle extends AbstractVerticle {
         //Set lenient to for string parsing
         simpleDateFormat.setLenient(false);
 
+        //Run the steps defined in the order and only proceed when successful
         Future<Void> steps = setupTwitterHandler()
                 .compose(handler -> startServer());
 
+        //Setup the twitter configuration
         setupTwitterHarvestingJob();
 
         steps.setHandler(handler -> {
@@ -144,6 +147,11 @@ public class MainVerticle extends AbstractVerticle {
         TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
         if(!ObjectUtils.allNotNull(twitterCounts)){
             twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+            if(!ObjectUtils.allNotNull(twitterCounts)){
+                context.response().setStatusCode(400);
+                context.response().end("No tweets in the last hour.");
+                return;
+            }
         }
 
         context.response().setStatusCode(200);
@@ -185,6 +193,11 @@ public class MainVerticle extends AbstractVerticle {
         TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
         if(!ObjectUtils.allNotNull(twitterCounts)){
             twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+            if(!ObjectUtils.allNotNull(twitterCounts)){
+                context.response().setStatusCode(400);
+                context.response().end("No tweets in the last hour.");
+                return;
+            }
         }
 
         context.response().setStatusCode(200);
