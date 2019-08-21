@@ -6,6 +6,7 @@ Application to get information for the hashtag #iot from twitter.
 1. Install all of the following software
         
         * Java JDK (tested with openjdk 11.0.4 2019-07-16)
+        * Maven (tested with 3.6.0)
         * Git (tested with 2.20.1)
   
 2. Clone the application
@@ -30,8 +31,8 @@ Build the application with maven. The artifact used is the generated _fat-jar_. 
     
         1. Start your docker daemon 
         2. Build the application for either linux or windows
-        3. Build the image: `docker build -t iot-twitter-application .`
-        4. Run the image, `docker run -i -p 8080:8080 iot-twitter-application`
+        3. Build the image with `docker build -t iot-twitter-application .`
+        4. Run: `docker run -i -p 8080:8080 iot-twitter-application`
     
 
 
@@ -41,7 +42,7 @@ The OpenAPI description can either be found in the source directory `src/main/re
 
 ##Usage
 
-The application when started has the following endpoint that can be reached via a browser. For further instructions
+The application when started has the following endpoints that can be reached via a browser. For further instructions
 visit http://localhost:8080 and read through the API description.
 
     http://localhost:8080/v1/tph/

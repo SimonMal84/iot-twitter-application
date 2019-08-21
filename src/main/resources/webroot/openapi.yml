@@ -18,7 +18,7 @@ paths:
   /v1/tph/{date}:
     get:
       summary: Get number of tweets for given hour of the day.
-      description: Returns the numer of tweets with the \#iot from the given date and hour of day as paramets date.
+      description: Returns the numer of tweets with the \#iot from the given date and hour of day as paramets date. Only returns data from the datastore.
       operationId: tweetsPerBySetHour
       parameters:
         - name: date
@@ -47,7 +47,7 @@ paths:
   /v1/uph/{date}:
     get:
       summary: Get the number of users for a given hour of day.
-      description: Returns the number of users for the \#iot in given date and hour of day as parameter date.
+      description: Returns the number of users for the \#iot in given date and hour of day as parameter date. Only returns data from the datastore.
       operationId: userTweetsBySetHour
       parameters:
       - name: date

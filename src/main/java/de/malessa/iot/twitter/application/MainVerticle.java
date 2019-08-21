@@ -176,7 +176,7 @@ public class MainVerticle extends AbstractVerticle {
 
             //if still nothing found then there is no data for the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
-                context.response().setStatusCode(200);
+                context.response().setStatusCode(500);
                 context.response().end("No tweets in the last hour.");
                 return;
             }
@@ -250,7 +250,7 @@ public class MainVerticle extends AbstractVerticle {
 
             //if object still null there is no data in the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
-                context.response().setStatusCode(400);
+                context.response().setStatusCode(500);
                 context.response().end("No tweets in the last hour.");
                 return;
             }
@@ -277,7 +277,7 @@ public class MainVerticle extends AbstractVerticle {
             date = checkDateFormat(context.pathParam("date"));
         } catch (ParseException e) {
             //return error if the date format is not vaild
-            context.response().setStatusCode(400);
+            context.response().setStatusCode(200);
             context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
             return;
         }
