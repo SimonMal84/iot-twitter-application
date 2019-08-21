@@ -47,11 +47,10 @@ public class MainVerticle extends AbstractVerticle {
 
         //Run the steps defined in the order and only proceed when successful
         Future<Void> steps = setupTwitterHandler()
-                .compose(handler -> startServer());
+                .compose(handler -> startServer())
+                .compose(handler -> setupTwitterHarvestingJob());
 
-        //Setup the twitter configuration
-        setupTwitterHarvestingJob();
-
+        //Check if all setup sets are successful
         steps.setHandler(handler -> {
             if (handler.succeeded()) {
                 log.info("iot-twitter-application started");
@@ -63,13 +62,20 @@ public class MainVerticle extends AbstractVerticle {
     }
 
 
+    /**
+     * Starts the http server and setups the routes for the rest endpoints.
+     *
+     * @return a future whether the server setup was successful
+     */
     private Future<Void> startServer() {
         Future<Void> future = Future.future();
 
+        //create the server router factory with the definitions in the openapi.xml
         OpenAPI3RouterFactory.create(vertx, "webroot/openapi.yml", ar -> {
             if (ar.succeeded()) {
                 //Setup the handler for the rest endpoints
                 OpenAPI3RouterFactory routerFactory = ar.result();
+                //defines a method for every endpoint in the openapi.yml
                 routerFactory.addHandlerByOperationId("tweetsLastHour", this::tweetsLastHour);
                 routerFactory.addHandlerByOperationId("tweetsPerBySetHour", this::tweetsPerBySetHour);
                 routerFactory.addHandlerByOperationId("userTweetsLastHour", this::userTweetsLastHour);
@@ -93,11 +99,18 @@ public class MainVerticle extends AbstractVerticle {
 
     }
 
+    /**
+     * Setups the connection to twitter and does a simple connection test.
+     *
+     * @return a future whether the twitter connection is successful
+     */
     private Future<Void> setupTwitterHandler() {
 
         Future<Void> future = Future.future();
 
+        //Setup the configurationBuilder with the twitter parameters
         ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        //TODO Should be set per ENV variables as well
         configurationBuilder.setDebugEnabled(true)
                 .setOAuthConsumerKey("jei9JhlDzBkAhvb57NjosYASV")
                 .setOAuthConsumerSecret("SLOeCOpOROZjJLBwSDyasHJwwurGZDGX1e43c7Ff4rTTP2kfk4")
@@ -117,6 +130,7 @@ public class MainVerticle extends AbstractVerticle {
     /**
      * Setup the hourly harvesting job for the relevant twitter data.
      * Done this way to have the opportunity to 5,10 etc minutes of an hour and not introduce a cron.
+     * @return a future whether the setup for the timer was successful
      */
     private Future<Void> setupTwitterHarvestingJob() {
 
@@ -142,13 +156,27 @@ public class MainVerticle extends AbstractVerticle {
     }
 
 
+    /**
+     * Method checks if there is already data stored for the last hour and uses it. Otherwise a new call will be made.
+     * Handles the response back to the client.
+     *
+     * Returns the number of tweets for the hashtag iot.
+     *
+     * @param context parameter passed from the vertx server
+     */
     private void tweetsLastHour(RoutingContext context) {
 
+        //check if data is stored and return it
         TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
+
+        //if nothing is found make a new call
         if(!ObjectUtils.allNotNull(twitterCounts)){
+            //get the new data for the last hour
             twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+
+            //if still nothing found then there is no data for the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
-                context.response().setStatusCode(400);
+                context.response().setStatusCode(200);
                 context.response().end("No tweets in the last hour.");
                 return;
             }
@@ -159,12 +187,22 @@ public class MainVerticle extends AbstractVerticle {
 
     }
 
+    /**
+     * Method checks if there is already data stored for the given hour from the request and uses it. Otherwise a new call will be made.
+     * Handles the response back to the client.
+     *
+     * Returns the number of tweets in the given time for the hashtag iot.
+     *
+     * @param context parameter passed from the vertx server
+     */
     private void tweetsPerBySetHour(RoutingContext context) {
-        Date date;
 
+        Date date;
         try {
+            //check if the given date is in the right format
             date = checkDateFormat(context.pathParam("date"));
         } catch (ParseException e) {
+            //return an error for the wrong dateformat
             context.response().setStatusCode(400);
             context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
             return;
@@ -172,15 +210,19 @@ public class MainVerticle extends AbstractVerticle {
 
         TwitterCounts twitterCounts = null;
         try {
+            //check if there is already data afor the given time
             twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(simpleDateFormat.parse(context.pathParam("date")), simpleDateFormat);
         } catch (ParseException e) {
             e.printStackTrace();
         }
+
+        //if the object is not null there is no data stored
         if(ObjectUtils.allNotNull(twitterCounts)){
             context.response().setStatusCode(200);
             context.response().end("For the hashtag #"+hashTag+" there where/was "+twitterCounts.getActiveTweetsPerTopic()+" tweets in the given date "+context.pathParam("date") +".");
             return;
         }else{
+            //no data storeed
             context.response().setStatusCode(500);
             context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
         }
@@ -189,10 +231,24 @@ public class MainVerticle extends AbstractVerticle {
 
     }
 
+    /**
+     * Method checks if there is already data stored for the last hour and uses it. Otherwise a new call will be made.
+     * Handles the response back to the client.
+     *
+     * Returns the number of unique users in the last hour tweeting about the hashtag iot.
+     *
+     * @param context parameter passed from the vertx server
+     */
     private void userTweetsLastHour(RoutingContext context) {
+        //check if there is already data
         TwitterCounts twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(new Date(),simpleDateFormat);
+
+        //if object is null there is no data
         if(!ObjectUtils.allNotNull(twitterCounts)){
+            //make a new request
             twitterCounts = twitterHandler.countTweetsByHashtagAndUsers(hashTag, new Date());
+
+            //if object still null there is no data in the last hour
             if(!ObjectUtils.allNotNull(twitterCounts)){
                 context.response().setStatusCode(400);
                 context.response().end("No tweets in the last hour.");
@@ -205,13 +261,22 @@ public class MainVerticle extends AbstractVerticle {
 
     }
 
+    /**
+     * Method checks if there is already data stored for the last hour and uses it. Otherwise a new call will be made.
+     * Handles the response back to the client.
+     *
+     * Returns the number of unique users in the given time tweeting about the hashtag iot.
+     *
+     * @param context parameter passed from the vertx server
+     */
     private void userTweetsBySetHour(RoutingContext context) {
 
         Date date;
-
         try {
+            //check if the date format is valid
             date = checkDateFormat(context.pathParam("date"));
         } catch (ParseException e) {
+            //return error if the date format is not vaild
             context.response().setStatusCode(400);
             context.response().end("The given date is not in the expected format:  " + dateFormatPattern);
             return;
@@ -219,22 +284,32 @@ public class MainVerticle extends AbstractVerticle {
 
         TwitterCounts twitterCounts = null;
         try {
+            //check if the data is already stored
             twitterCounts = twitterHandler.checkIfDataIsAlreadyStored(simpleDateFormat.parse(context.pathParam("date")), simpleDateFormat);
         } catch (ParseException e) {
             e.printStackTrace();
         }
 
+        //if object not null data is stored and will be returned
         if(ObjectUtils.allNotNull(twitterCounts)){
             context.response().setStatusCode(200);
             context.response().end(twitterCounts.getActiveUsersPerTopic() + " active users where tweeting for the hashtag #"+hashTag+" on the given date "+context.pathParam("date") +".");
             return;
         }else{
+            //no data found for the given date
             context.response().setStatusCode(500);
             context.response().end("There is no data stored for the date "+context.pathParam("date")+".");
         }
     }
 
 
+    /**
+     * Checks if the date matches the given simpleDateformat defined
+     *
+     * @param dateString the string that should be checked
+     * @return returns a date object parsed from the datestring
+     * @throws ParseException is thrown when the date is not parsable
+     */
     private Date checkDateFormat(String dateString) throws ParseException {
 
         //if the given dateString is not parseable against the pattern an exception is thrown.

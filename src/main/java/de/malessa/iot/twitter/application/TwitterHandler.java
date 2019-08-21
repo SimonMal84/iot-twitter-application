@@ -19,8 +19,14 @@ public class TwitterHandler {
     Twitter twitter;
     private String dateFormatStrForQuery = "yyyy-MM-dd";
 
+    //the simple datastore as a list TODO: change to something persistend
     private List<TwitterCounts> listOfTwitterCounts = new ArrayList<>();
 
+    /**
+     * Creates the Twitterhandler
+     *
+     * @param configurationBuilder the configuration for twitter
+     */
     public TwitterHandler(ConfigurationBuilder configurationBuilder) {
 
         TwitterFactory twitterFactory = new TwitterFactory(configurationBuilder.build());
@@ -28,6 +34,13 @@ public class TwitterHandler {
 
     }
 
+    /**
+     * Build the query and gets the data from twitter. Then calulates the desired numbers and stores them in the datastore.
+     *
+     * @param hashtag the hashtag that should be searched for
+     * @param date the date containing the hour of day that is used for the sum of tweets and users
+     * @return
+     */
     public TwitterCounts countTweetsByHashtagAndUsers(String hashtag, Date date) {
 
         Query query = new Query(hashtag);
@@ -43,7 +56,6 @@ public class TwitterHandler {
         //Build a complete list for the given timeframe
         List<Status> tweets= new ArrayList<>();
         do {
-
             try {
                 search = twitter.search(query);
             } catch (TwitterException e) {
@@ -57,13 +69,13 @@ public class TwitterHandler {
         //Iterate over the tweets and add the missing hours of days with data
         List<TwitterCounts> tmpTwitterCounts = new ArrayList<>();
         for (Status tweet : tweets) {
-
-
+            //boolean do deside if we have the date and hour of day already.
             boolean dateAndHourAlreadySet=false;
             String tweetDate = new SimpleDateFormat(dateFormatStrForQuery).format(tweet.getCreatedAt());
             for (TwitterCounts twitterCounts : tmpTwitterCounts) {
                 String twitterCountsDate = new SimpleDateFormat(dateFormatStrForQuery).format(twitterCounts.getDate());
 
+                //check if we already have the timeframe, if so add to that object
                 if(tweetDate.equals(twitterCountsDate)){
                     if(twitterCounts.getHourOfDay()==tweet.getCreatedAt().getHours()){
                         dateAndHourAlreadySet=true;
@@ -76,6 +88,7 @@ public class TwitterHandler {
                 }
             }
 
+            //if we dont have the object with the timeframe in our list, create a new one and add it to our tmp list
             if(!dateAndHourAlreadySet){
                 TwitterCounts twitterCounts=null;
                 try {
@@ -122,6 +135,13 @@ public class TwitterHandler {
         return null;
     }
 
+    /**
+     * Check if we already have data for the given date. If so return that data.
+     *
+     * @param date Date containing the hour of day we use for our calculations
+     * @param simpleDateFormat format to translate the twitter date to ours for comparison
+     * @return returns the desired data. If nothing is found null will be returned.
+     */
     public TwitterCounts checkIfDataIsAlreadyStored(Date date, SimpleDateFormat simpleDateFormat) {
 
         //check if we already have the date stored and return
